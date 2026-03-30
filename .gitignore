@@ -38,6 +38,7 @@ dist-ssr
 
 # Editor directories and files
 .vscode/*
+.gradio
+.superset
 !.vscode/extensions.json
-.*
 !.dockerignore

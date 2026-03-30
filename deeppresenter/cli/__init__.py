@@ -5,7 +5,7 @@ import warnings
 
 import typer
 
-from .commands import clean, config, generate, onboard, serve, tui
+from .commands import clean, config, generate, onboard, serve
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message=".*urllib3.*")
@@ -19,7 +19,7 @@ app = typer.Typer(
 app.command()(onboard)
 app.command()(serve)
 app.command()(generate)
-app.command()(tui)
+# app.command()(tui)
 app.command()(config)
 app.command()(clean)
 
