@@ -80,6 +80,7 @@ class Agent:
             raise FileNotFoundError(f"Cannot found role config file at: {config_file} ")
 
         # Setting basic context
+        workspace.mkdir(parents=True, exist_ok=True)
         with open(config_file, encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
         self.role_config = RoleConfig(**config_data)

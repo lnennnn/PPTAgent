@@ -52,7 +52,8 @@ WORKDIR /usr/src/pptagent
 COPY . .
 
 RUN npm install --prefix deeppresenter/html2pptx --ignore-scripts && \
-    npm exec --prefix deeppresenter/html2pptx playwright install chromium
+    npm exec --prefix deeppresenter/html2pptx playwright install chromium && \
+    npm install --prefix /root/.cache/deeppresenter/html2pptx fast-glob minimist pptxgenjs playwright sharp
 
 WORKDIR /usr/src/app
 
@@ -78,6 +79,7 @@ RUN printenv | grep -E '^(PATH|PYTHONUNBUFFERED|VIRTUAL_ENV|PUPPETEER_|LANG|LC_A
 RUN git clone https://github.com/wonderwhy-er/DesktopCommanderMCP.git . && \
     git checkout 252a00d624c2adc5707fa743c57a1b68bc223689 && \
     rm -rf .git
+
 RUN npm install --ignore-scripts && npm install -g @mermaid-js/mermaid-cli pptxgenjs playwright sharp
 
 # Create Python virtual environment and install packages

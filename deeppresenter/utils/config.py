@@ -311,6 +311,9 @@ class DeepPresenterConfig(BaseModel):
     """DeepPresenter Global Configuration"""
 
     # config
+    multiagent_mode: bool = Field(
+        default=False, description="Enable multiagent mode (experimental)"
+    )
     offline_mode: bool = Field(
         default=False, description="Enable offline mode, disable all network requests"
     )

@@ -4,8 +4,7 @@
         "description": "File conversion tools",
         "command": "python3",
         "args": [
-            "$PACKAGE_DIR/tools/any2markdown.py",
-            "$WORKSPACE"
+            "$PACKAGE_DIR/tools/any2markdown.py"
         ],
         "env": {
             "MINERU_API_KEY": "your_mineru_api_key_here"
@@ -16,8 +15,7 @@
         "description": "Task management tools",
         "command": "python3",
         "args": [
-            "$PACKAGE_DIR/tools/task.py",
-            "$WORKSPACE"
+            "$PACKAGE_DIR/tools/task.py"
         ]
     },
     {
@@ -25,8 +23,7 @@
         "description": "Artifact inspection tools for deeppresenter",
         "command": "python3",
         "args": [
-            "$PACKAGE_DIR/tools/reflect.py",
-            "$WORKSPACE"
+            "$PACKAGE_DIR/tools/reflect.py"
         ]
     },
     {
@@ -34,8 +31,7 @@
         "description": "LLM-powered tool agents",
         "command": "python3",
         "args": [
-            "$PACKAGE_DIR/tools/tool_agents.py",
-            "$WORKSPACE"
+            "$PACKAGE_DIR/tools/tool_agents.py"
         ]
     },
     {
@@ -43,8 +39,7 @@
         "description": "Academic paper search tools",
         "command": "python3",
         "args": [
-            "$PACKAGE_DIR/tools/research.py",
-            "$WORKSPACE"
+            "$PACKAGE_DIR/tools/research.py"
         ],
         "network": true
     },
@@ -53,8 +48,7 @@
         "description": "Web search tools",
         "command": "python3",
         "args": [
-            "$PACKAGE_DIR/tools/search.py",
-            "$WORKSPACE"
+            "$PACKAGE_DIR/tools/search.py"
         ],
         "env": {
             "TAVILY_API_KEY": "your_tavily_api_key_here"

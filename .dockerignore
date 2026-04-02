@@ -1,4 +1,3 @@
-.git
 .github
 .pytest_cache
 .ruff_cache
@@ -18,6 +17,4 @@ workspace
 .env
 .env.*
 
-**/images/*.png
-**/images/*.jpg
 **/test_output

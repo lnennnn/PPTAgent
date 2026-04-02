@@ -11,6 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import docker
+import jsonschema
 from docker.errors import DockerException, NotFound
 from fastmcp.utilities.json_schema import compress_schema
 from fastmcp.utilities.types import get_cached_typeadapter
@@ -109,6 +110,16 @@ class AgentEnv:
                 arguments = None
             else:
                 arguments = json.loads(tool_call.function.arguments)
+                try:
+                    assert jsonschema.validate(
+                        arguments,
+                        self._tools_dict[tool_call.function.name]["function"][
+                            "parameters"
+                        ],
+                    )
+                except jsonschema.ValidationError as e:
+                    raise f"Input validation error: {e.message}"
+
             if tool_call.function.name in self._local_tools:
                 result = await self._call_local_tool(tool_call.function.name, arguments)
             else:
@@ -361,7 +372,7 @@ class AgentEnv:
         kwargs = arguments or {}
         raw = (
             await func(**kwargs)
-            if asyncio.iscoroutinefunction(func)
+            if inspect.iscoroutinefunction(func)
             else func(**kwargs)
         )
         return CallToolResult(

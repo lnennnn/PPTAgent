@@ -53,7 +53,8 @@ WORKDIR /usr/src/pptagent
 COPY . .
 
 RUN npm install --prefix deeppresenter/html2pptx --ignore-scripts && \
-    npm exec --prefix deeppresenter/html2pptx playwright install chromium
+    npm exec --prefix deeppresenter/html2pptx playwright install chromium && \
+    npm install --prefix /root/.cache/deeppresenter/html2pptx fast-glob minimist pptxgenjs playwright sharp
 
 # Set environment variables
 ENV PATH="/opt/.venv/bin:${PATH}" \
