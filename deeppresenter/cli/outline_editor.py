@@ -88,9 +88,15 @@ async def interactive_edit_outline(
                 console.print(f"[red]Slide {idx} not found.[/red]")
                 continue
             console.print(f"Editing slide [bold]{idx}[/bold]: {slide.title}")
-            new_title = Prompt.ask("  New title (leave blank to keep)", default=slide.title)
-            new_context = Prompt.ask("  New context (leave blank to keep)", default=slide.context)
-            outline = outline.update_slide(idx, title=new_title.strip(), context=new_context.strip())
+            new_title = Prompt.ask(
+                "  New title (leave blank to keep)", default=slide.title
+            )
+            new_context = Prompt.ask(
+                "  New context (leave blank to keep)", default=slide.context
+            )
+            outline = outline.update_slide(
+                idx, title=new_title.strip(), context=new_context.strip()
+            )
             render_outline(outline)
             _menu()
 
@@ -108,7 +114,9 @@ async def interactive_edit_outline(
             after_idx = int(rest) if rest.isdigit() else 0
             new_title = Prompt.ask("  Title for new slide")
             new_context = Prompt.ask("  Context for new slide")
-            outline = outline.add_slide(after_idx, title=new_title.strip(), context=new_context.strip())
+            outline = outline.add_slide(
+                after_idx, title=new_title.strip(), context=new_context.strip()
+            )
             render_outline(outline)
             _menu()
 

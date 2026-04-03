@@ -24,7 +24,7 @@ class Planner(Agent):
 
     async def loop(
         self, req: InputRequest
-    ) -> AsyncGenerator[ChatMessage | Outline, None]:
+    ) -> AsyncGenerator[ChatMessage | Outline]:
         while True:
             agent_message = await self.action(
                 prompt=req.deepresearch_prompt,

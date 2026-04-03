@@ -301,7 +301,10 @@ def generate(
     ] = "en",
     planner: Annotated[
         bool,
-        typer.Option("--planner", help="Generate and interactively edit an outline before research"),
+        typer.Option(
+            "--planner",
+            help="Generate and interactively edit an outline before research",
+        ),
     ] = False,
 ):
     """Generate a presentation from prompt and optional files."""

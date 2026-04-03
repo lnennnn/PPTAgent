@@ -29,7 +29,7 @@ class Outline(BaseModel):
         )
 
     @classmethod
-    def from_json(cls, data: str | list | dict) -> "Outline":
+    def from_json(cls, data: str | list | dict) -> Outline:
         if isinstance(data, str):
             text = data.strip()
             if not text:
@@ -67,12 +67,12 @@ class Outline(BaseModel):
         path.write_text(self.to_json(), encoding="utf-8")
 
     @classmethod
-    def load(cls, path: Path) -> "Outline":
+    def load(cls, path: Path) -> Outline:
         return cls.from_json(path.read_text(encoding="utf-8-sig"))
 
     # ── Pure operations (return new Outline, do not mutate) ────────────
 
-    def reindex(self) -> "Outline":
+    def reindex(self) -> Outline:
         """Return a new Outline with slides re-numbered from 1."""
         new_slides = [
             OutlineSlide(index=i, title=s.title, context=s.context)
@@ -80,33 +80,35 @@ class Outline(BaseModel):
         ]
         return Outline(slides=new_slides)
 
-    def update_slide(self, index: int, title: str = "", context: str = "") -> "Outline":
+    def update_slide(self, index: int, title: str = "", context: str = "") -> Outline:
         """Return a new Outline with the given slide's title/context updated."""
         new_slides = []
         for s in self.slides:
             if s.index == index:
-                new_slides.append(OutlineSlide(
-                    index=s.index,
-                    title=title or s.title,
-                    context=context or s.context,
-                ))
+                new_slides.append(
+                    OutlineSlide(
+                        index=s.index,
+                        title=title or s.title,
+                        context=context or s.context,
+                    )
+                )
             else:
                 new_slides.append(s.model_copy())
         return Outline(slides=new_slides)
 
-    def delete_slide(self, index: int) -> "Outline":
+    def delete_slide(self, index: int) -> Outline:
         """Return a new Outline with the given slide removed and re-indexed."""
         new_slides = [s for s in self.slides if s.index != index]
         return Outline(slides=new_slides).reindex()
 
-    def add_slide(self, after_index: int, title: str, context: str) -> "Outline":
+    def add_slide(self, after_index: int, title: str, context: str) -> Outline:
         """Return a new Outline with a slide inserted after after_index (0 = prepend)."""
         new_slide = OutlineSlide(index=0, title=title, context=context)
         slides = list(self.slides)
         slides.insert(after_index, new_slide)
         return Outline(slides=slides).reindex()
 
-    def swap_slides(self, index_a: int, index_b: int) -> "Outline":
+    def swap_slides(self, index_a: int, index_b: int) -> Outline:
         """Return a new Outline with two slides swapped."""
         slides = list(self.slides)
         pos_a = next((i for i, s in enumerate(slides) if s.index == index_a), None)
