@@ -7,6 +7,7 @@ from typing import Literal
 
 from deeppresenter.agents.design import Design
 from deeppresenter.agents.env import AgentEnv
+from deeppresenter.agents.planner import Planner
 from deeppresenter.agents.pptagent import PPTAgent
 from deeppresenter.agents.research import Research
 from deeppresenter.utils.config import DeepPresenterConfig
@@ -14,6 +15,7 @@ from deeppresenter.utils.constants import WORKSPACE_BASE
 from deeppresenter.utils.log import debug, error, set_logger, timer, warning
 from deeppresenter.utils.typings import ChatMessage, ConvertType, InputRequest, Role
 from deeppresenter.utils.webview import PlaywrightConverter, convert_html_to_pptx
+from deeppresenter.utils.outline import Outline, OutlineEditor
 
 
 class AgentLoop:
@@ -23,9 +25,11 @@ class AgentLoop:
         session_id: str | None = None,
         workspace: Path = None,
         language: Literal["zh", "en"] = "en",
+        outline_editor: OutlineEditor | None = None,
     ):
         self.config = config
         self.language = language
+        self.outline_editor = outline_editor
         if session_id is None:
             session_id = str(uuid.uuid4())[:8]
         self.workspace = workspace or WORKSPACE_BASE / session_id
@@ -69,6 +73,38 @@ class AgentLoop:
                 hello_message += " [Offline Mode]"
             debug(hello_message)
             yield ChatMessage(role=Role.SYSTEM, content=hello_message)
+
+            # ── Optional Planner phase ────────────────────────────────────
+            if request.enable_planner:
+                self.planner = Planner(
+                    self.config,
+                    agent_env,
+                    self.workspace,
+                    self.language,
+                )
+                self.agent = self.planner
+                outline: Outline | None = None
+                try:
+                    async for msg in self.planner.loop(request):
+                        if isinstance(msg, Outline):
+                            outline = msg
+                            break
+                        yield msg
+                except Exception as e:
+                    error_message = f"Planner agent failed with error: {e}\n{traceback.format_exc()}"
+                    error(error_message)
+                    raise e
+                finally:
+                    self.planner.save_history()
+
+                if outline is not None:
+                    outline = await self.outline_editor(
+                        outline, self.planner.revise_outline
+                    )
+                    outline_path = self.workspace / "outline.json"
+                    outline.save(outline_path)
+                    debug(f"Final approved outline saved to {outline_path}")
+
             self.research_agent = Research(
                 self.config,
                 agent_env,

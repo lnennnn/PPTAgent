@@ -89,6 +89,10 @@ system:
 
 instruction: |
   {{prompt}}
+  {% if outline_path %}
+
+  The user has pre-approved a slide outline. Read the outline file at `{{outline_path}}` and structure your manuscript to follow it exactly — one `---` separated section per slide.
+  {% endif %}
 
 use_model: research_agent
 toolset:

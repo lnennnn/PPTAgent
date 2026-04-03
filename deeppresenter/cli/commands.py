@@ -16,6 +16,7 @@ import yaml
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 
+from deeppresenter.cli.outline_editor import interactive_edit_outline
 from deeppresenter.main import AgentLoop, InputRequest
 from deeppresenter.tui.app import DeepPresenterTUI
 from deeppresenter.tui.controller import SessionController
@@ -298,6 +299,10 @@ def generate(
     language: Annotated[
         str, typer.Option("--lang", "-l", help="Language (en/zh)")
     ] = "en",
+    planner: Annotated[
+        bool,
+        typer.Option("--planner", help="Generate and interactively edit an outline before research"),
+    ] = False,
 ):
     """Generate a presentation from prompt and optional files."""
     ensure_supported_platform()
@@ -320,6 +325,7 @@ def generate(
         attachments=attachments,
         num_pages=pages,
         powerpoint_type=aspect_ratio,
+        enable_planner=planner,
     )
 
     config = DeepPresenterConfig.load_from_file(str(CONFIG_FILE))
@@ -338,6 +344,7 @@ def generate(
             session_id=session_id,
             workspace=None,
             language=language,
+            outline_editor=interactive_edit_outline if planner else None,
         )
 
         console.print(

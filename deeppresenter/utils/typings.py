@@ -186,6 +186,7 @@ class InputRequest(BaseModel):
     template: str | None = None
     powerpoint_type: PowerPointType = PowerPointType.WIDE_SCREEN
     convert_type: ConvertType = ConvertType.DEEPPRESENTER
+    enable_planner: bool = False
     extra_info: dict[str, Any] = {}
 
     def copy_to_workspace(self, workspace: Path):
