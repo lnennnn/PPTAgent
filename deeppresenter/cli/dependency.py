@@ -11,9 +11,9 @@ import deeppresenter.utils.webview as webview
 
 from .common import LOCAL_LID_MODEL, console, run_streaming_command
 
-SANDBOX_IMAGE = "deeppresenter-sandbox:0.1.0"
-SANDBOX_IMAGE_SOURCE = "forceless/deeppresenter-sandbox:0.1.0"
-SANDBOX_IMAGE_MIRROR = "docker.1ms.run/forceless/deeppresenter-sandbox:0.1.0"
+SANDBOX_IMAGE = "deeppresenter-sandbox"
+SANDBOX_IMAGE_SOURCE = "forceless/deeppresenter-sandbox"
+SANDBOX_IMAGE_MIRROR = "docker.1ms.run/forceless/deeppresenter-sandbox"
 
 
 def ensure_supported_platform() -> None:

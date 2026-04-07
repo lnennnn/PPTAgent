@@ -7,7 +7,7 @@ services:
         http_proxy: ${http_proxy:-}
         https_proxy: ${https_proxy:-}
         no_proxy: ${no_proxy:-}
-    image: deeppresenter-host:0.1.0
+    image: deeppresenter-host
     container_name: deeppresenter-host
     ports:
       - "7861:7861"

@@ -111,11 +111,14 @@ class AgentEnv:
             else:
                 arguments = json.loads(tool_call.function.arguments)
                 try:
-                    assert jsonschema.validate(
-                        arguments,
-                        self._tools_dict[tool_call.function.name]["function"][
-                            "parameters"
-                        ],
+                    assert (
+                        jsonschema.validate(
+                            arguments,
+                            self._tools_dict[tool_call.function.name]["function"][
+                                "parameters"
+                            ],
+                        )
+                        is None
                     )
                 except jsonschema.ValidationError as e:
                     raise f"Input validation error: {e.message}"

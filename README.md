@@ -141,11 +141,12 @@ playwright install chromium
 npm install --prefix deeppresenter/html2pptx
 modelscope download forceless/fasttext-language-id
 
-docker pull forceless/deeppresenter-sandbox:0.1.0
-docker tag forceless/deeppresenter-sandbox:0.1.0 deeppresenter-sandbox:0.1.0
+docker pull forceless/deeppresenter-sandbox
+docker pull forceless/deeppresenter-host
+docker tag forceless/deeppresenter-sandbox deeppresenter-sandbox
 
 # or build from dockerfile
-docker build -t deeppresenter-sandbox:0.1.0 -f deeppresenter/docker/SandBox.Dockerfile .
+docker build -t deeppresenter-sandbox -f deeppresenter/docker/SandBox.Dockerfile .
 ```
 
 Start the app:
@@ -160,11 +161,11 @@ Use this mode for a stable server environment with explicit dependencies.
 
 ```bash
 # Pull the public images to avoid build from source
-docker pull forceless/deeppresenter-sandbox:0.1.0
-docker tag forceless/deeppresenter-sandbox:0.1.0 deeppresenter-sandbox:0.1.0
+docker pull forceless/deeppresenter-sandbox
+docker tag forceless/deeppresenter-sandbox deeppresenter-sandbox
 
 # Or build from source
-docker build -t deeppresenter-sandbox:0.1.0 -f deeppresenter/docker/SandBox.Dockerfile .
+docker build -t deeppresenter-sandbox -f deeppresenter/docker/SandBox.Dockerfile .
 
 # Start the host service
 docker compose up -d

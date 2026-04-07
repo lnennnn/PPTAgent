@@ -70,7 +70,7 @@
             "$HOST_WORKSPACE:$WORKSPACE",
             "-w",
             "$WORKSPACE",
-            "deeppresenter-sandbox:0.1.0"
+            "deeppresenter-sandbox"
         ]
     }
 ]
