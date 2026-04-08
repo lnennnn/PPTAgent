@@ -20,7 +20,9 @@ class Planner(Agent):
         info(f"Planner finished initial outline at {outcome}")
 
         while True:
-            self.chat_history.append(ChatMessage(role=Role.USER, content=(yield outcome)))
+            self.chat_history.append(
+                ChatMessage(role=Role.USER, content=(yield outcome))
+            )
             while True:
                 agent_message = await self.action(
                     prompt=req.deepresearch_prompt,
