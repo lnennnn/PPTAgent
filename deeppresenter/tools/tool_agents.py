@@ -121,40 +121,42 @@ Important: Only respond with content directly related to the task and document a
 """
 
 
-@mcp.tool()
-async def document_summary(task: str, document_path: str) -> str:
-    """
-    Generate a report according to the given task and long document.
+if LLM_CONFIG.multiagent_mode:
 
-    Args:
-        task: The specific task or objective for the report
-        document_path: Path to the pure text document to be analyzed.
+    @mcp.tool()
+    async def document_summary(task: str, document_path: str) -> str:
+        """
+        Generate a report according to the given task and long document.
 
-    Returns:
-        A structured summary report in Markdown format based on the task and document content
-    """
-    assert Path(document_path).is_file(), (
-        f"Document path {document_path} does not exist"
-    )
-    assert not is_binary(document_path), (
-        "Provided document is a binary file, expected text"
-    )
-    with open(document_path, encoding="utf-8") as f:
-        document = f.read()
-    response = await LLM_CONFIG.long_context_model.run(
-        messages=[
-            {"role": "system", "content": _SUMMARY_SYSTEM},
-            {
-                "role": "user",
-                "content": f"Task: {task}\nDocument: {document}",
-            },
-        ],
-    )
-    report = response.choices[0].message.content
-    debug(
-        f"Document analyzed: path='{document_path}', task='{task}', report='{report}'"
-    )
-    return report
+        Args:
+            task: The specific task or objective for the report
+            document_path: Path to the pure text document to be analyzed.
+
+        Returns:
+            A structured summary report in Markdown format based on the task and document content
+        """
+        assert Path(document_path).is_file(), (
+            f"Document path {document_path} does not exist"
+        )
+        assert not is_binary(document_path), (
+            "Provided document is a binary file, expected text"
+        )
+        with open(document_path, encoding="utf-8") as f:
+            document = f.read()
+        response = await LLM_CONFIG.long_context_model.run(
+            messages=[
+                {"role": "system", "content": _SUMMARY_SYSTEM},
+                {
+                    "role": "user",
+                    "content": f"Task: {task}\nDocument: {document}",
+                },
+            ],
+        )
+        report = response.choices[0].message.content
+        debug(
+            f"Document analyzed: path='{document_path}', task='{task}', report='{report}'"
+        )
+        return report
 
 
 if __name__ == "__main__":
