@@ -1,32 +1,48 @@
-"""Outline data model, pure operations, and editor protocol for adapters (CLI / web)."""
-
 from __future__ import annotations
 
-import json
-from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Protocol
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import RootModel
 
 from deeppresenter.utils.config import get_json_from_response
 
 
-class OutlineSlide(BaseModel):
-    index: int
-    title: str
-    context: str
+class Outline(RootModel[list[dict[str, Any]]]):
+    @property
+    def slides(self) -> list[dict[str, Any]]:
+        return self.root
 
+    @staticmethod
+    def _normalize_slide(item: str | dict[str, Any], index: int) -> dict[str, Any]:
+        if isinstance(item, str):
+            return {"index": index, "title": item, "context": ""}
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"Each slide must be an object or string, got {type(item).__name__}."
+            )
 
-class Outline(BaseModel):
-    slides: list[OutlineSlide]
+        raw_index = item.get("index", index)
+        try:
+            slide_index = int(raw_index)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Slide index must be an integer, got {raw_index!r}."
+            ) from exc
+
+        title = item.get("title", "")
+        context = item.get("context", "")
+        if title is None:
+            title = ""
+        if context is None:
+            context = ""
+        return {
+            "index": slide_index,
+            "title": str(title),
+            "context": str(context),
+        }
 
     # ── Serialization ──────────────────────────────────────────────────
-
-    def to_json(self) -> str:
-        return json.dumps(
-            [s.model_dump() for s in self.slides], ensure_ascii=False, indent=2
-        )
 
     @classmethod
     def from_json(cls, data: str | list | dict) -> Outline:
@@ -47,24 +63,15 @@ class Outline(BaseModel):
             raise ValueError(
                 f"Outline slides must be a JSON array, got {type(data).__name__}."
             )
-        slides: list[OutlineSlide] = []
+        slides: list[dict[str, Any]] = []
         for i, item in enumerate(data, start=1):
-            if isinstance(item, str):
-                slides.append(OutlineSlide(index=i, title=item, context=""))
-            elif isinstance(item, dict):
-                d = dict(item)
-                d.setdefault("index", i)
-                d.setdefault("title", "")
-                d.setdefault("context", "")
-                slides.append(OutlineSlide.model_validate(d))
-            else:
-                raise ValueError(
-                    f"Each slide must be an object or string, got {type(item).__name__}."
-                )
-        return cls(slides=slides)
+            slides.append(cls._normalize_slide(item, i))
+        return cls.model_validate(slides)
 
     def save(self, path: Path) -> None:
-        path.write_text(self.to_json(), encoding="utf-8")
+        path.write_text(
+            self.model_dump_json(indent=2, ensure_ascii=False), encoding="utf-8"
+        )
 
     @classmethod
     def load(cls, path: Path) -> Outline:
@@ -75,55 +82,45 @@ class Outline(BaseModel):
     def reindex(self) -> Outline:
         """Return a new Outline with slides re-numbered from 1."""
         new_slides = [
-            OutlineSlide(index=i, title=s.title, context=s.context)
+            {"index": i, "title": s["title"], "context": s["context"]}
             for i, s in enumerate(self.slides, start=1)
         ]
-        return Outline(slides=new_slides)
+        return Outline.model_validate(new_slides)
 
     def update_slide(self, index: int, title: str = "", context: str = "") -> Outline:
         """Return a new Outline with the given slide's title/context updated."""
         new_slides = []
         for s in self.slides:
-            if s.index == index:
+            if s["index"] == index:
                 new_slides.append(
-                    OutlineSlide(
-                        index=s.index,
-                        title=title or s.title,
-                        context=context or s.context,
-                    )
+                    {
+                        "index": s["index"],
+                        "title": title or s["title"],
+                        "context": context or s["context"],
+                    }
                 )
             else:
-                new_slides.append(s.model_copy())
-        return Outline(slides=new_slides)
+                new_slides.append(dict(s))
+        return Outline.model_validate(new_slides)
 
     def delete_slide(self, index: int) -> Outline:
         """Return a new Outline with the given slide removed and re-indexed."""
-        new_slides = [s for s in self.slides if s.index != index]
-        return Outline(slides=new_slides).reindex()
+        new_slides = [s for s in self.slides if s["index"] != index]
+        return Outline.model_validate(new_slides).reindex()
 
     def add_slide(self, after_index: int, title: str, context: str) -> Outline:
         """Return a new Outline with a slide inserted after after_index (0 = prepend)."""
-        new_slide = OutlineSlide(index=0, title=title, context=context)
+        new_slide = {"index": 0, "title": title, "context": context}
         slides = list(self.slides)
         slides.insert(after_index, new_slide)
-        return Outline(slides=slides).reindex()
+        return Outline.model_validate(slides).reindex()
 
     def swap_slides(self, index_a: int, index_b: int) -> Outline:
         """Return a new Outline with two slides swapped."""
         slides = list(self.slides)
-        pos_a = next((i for i, s in enumerate(slides) if s.index == index_a), None)
-        pos_b = next((i for i, s in enumerate(slides) if s.index == index_b), None)
+        pos_a = next((i for i, s in enumerate(slides) if s["index"] == index_a), None)
+        pos_b = next((i for i, s in enumerate(slides) if s["index"] == index_b), None)
         if pos_a is None or pos_b is None:
             raise ValueError(f"Slide index {index_a} or {index_b} not found.")
         slides[pos_a], slides[pos_b] = slides[pos_b], slides[pos_a]
-        return Outline(slides=slides).reindex()
-
-
-class OutlineEditor(Protocol):
-    """Async callable: edit or confirm outline before research; may call ai_modify for LLM revisions."""
-
-    async def __call__(
-        self,
-        outline: Outline,
-        ai_modify: Callable[[Outline, str], Awaitable[Outline]],
-    ) -> Outline: ...
+        return Outline.model_validate(slides).reindex()

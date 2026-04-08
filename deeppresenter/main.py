@@ -13,7 +13,7 @@ from deeppresenter.agents.research import Research
 from deeppresenter.utils.config import DeepPresenterConfig
 from deeppresenter.utils.constants import WORKSPACE_BASE
 from deeppresenter.utils.log import debug, error, set_logger, timer, warning
-from deeppresenter.utils.outline import Outline, OutlineEditor
+from deeppresenter.utils.outline import Outline
 from deeppresenter.utils.typings import ChatMessage, ConvertType, InputRequest, Role
 from deeppresenter.utils.webview import PlaywrightConverter, convert_html_to_pptx
 
@@ -25,11 +25,9 @@ class AgentLoop:
         session_id: str | None = None,
         workspace: Path = None,
         language: Literal["zh", "en"] = "en",
-        outline_editor: OutlineEditor | None = None,
     ):
         self.config = config
         self.language = language
-        self.outline_editor = outline_editor
         if session_id is None:
             session_id = str(uuid.uuid4())[:8]
         self.workspace = workspace or WORKSPACE_BASE / session_id
@@ -55,7 +53,7 @@ class AgentLoop:
             check_llms: Whether to check LLM availability before running.
             soft_parsing: Whether to use soft parsing on html2pptx.
         Yields:
-            ChatMessage or str: Messages or final output path.
+            ChatMessage or final output path (str). Outline path stored in intermediate_output["outline"].
         """
         if not self.config.design_agent.is_multimodal and self.config.heavy_reflect:
             debug(
@@ -83,11 +81,13 @@ class AgentLoop:
                     self.language,
                 )
                 self.agent = self.planner
-                outline: Outline | None = None
+                self.planner_gen = self.planner.loop(request)
+                outline_path = self.workspace / "outline.json"
                 try:
-                    async for msg in self.planner.loop(request):
+                    async for msg in self.planner_gen:
                         if isinstance(msg, Outline):
-                            outline = msg
+                            self.intermediate_output["outline"] = outline_path
+                            yield str(outline_path)
                             break
                         yield msg
                 except Exception as e:
@@ -96,14 +96,8 @@ class AgentLoop:
                     raise e
                 finally:
                     self.planner.save_history()
-
-                if outline is not None:
-                    outline = await self.outline_editor(
-                        outline, self.planner.revise_outline
-                    )
-                    outline_path = self.workspace / "outline.json"
-                    outline.save(outline_path)
-                    debug(f"Final approved outline saved to {outline_path}")
+                    await self.planner_gen.aclose()
+                    self.save_results()
 
             self.research_agent = Research(
                 self.config,
@@ -131,6 +125,7 @@ class AgentLoop:
             finally:
                 self.research_agent.save_history()
                 self.save_results()
+
             if request.convert_type == ConvertType.PPTAGENT:
                 self.pptagent = PPTAgent(
                     self.config,
