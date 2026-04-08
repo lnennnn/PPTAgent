@@ -1,14 +1,29 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
-from pydantic import RootModel
-
-from deeppresenter.utils.config import get_json_from_response
+from pydantic import RootModel, model_validator
 
 
 class Outline(RootModel[list[dict[str, Any]]]):
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_input(cls, data: Any) -> list[dict[str, Any]]:
+        if isinstance(data, dict):
+            if "slides" not in data:
+                raise ValueError(
+                    "Outline JSON object must contain a 'slides' array, "
+                    "or use a top-level JSON array of slides."
+                )
+            data = data["slides"]
+
+        if not isinstance(data, list):
+            raise ValueError(
+                f"Outline slides must be a JSON array, got {type(data).__name__}."
+            )
+
+        return [cls._normalize_slide(item, i) for i, item in enumerate(data, start=1)]
+
     @property
     def slides(self) -> list[dict[str, Any]]:
         return self.root
@@ -41,41 +56,6 @@ class Outline(RootModel[list[dict[str, Any]]]):
             "title": str(title),
             "context": str(context),
         }
-
-    # ── Serialization ──────────────────────────────────────────────────
-
-    @classmethod
-    def from_json(cls, data: str | list | dict) -> Outline:
-        if isinstance(data, str):
-            text = data.strip()
-            if not text:
-                raise ValueError("Outline JSON is empty or whitespace-only.")
-            data = get_json_from_response(text)
-        if isinstance(data, dict):
-            if "slides" in data:
-                data = data["slides"]
-            else:
-                raise ValueError(
-                    "Outline JSON object must contain a 'slides' array, "
-                    "or use a top-level JSON array of slides."
-                )
-        if not isinstance(data, list):
-            raise ValueError(
-                f"Outline slides must be a JSON array, got {type(data).__name__}."
-            )
-        slides: list[dict[str, Any]] = []
-        for i, item in enumerate(data, start=1):
-            slides.append(cls._normalize_slide(item, i))
-        return cls.model_validate(slides)
-
-    def save(self, path: Path) -> None:
-        path.write_text(
-            self.model_dump_json(indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-
-    @classmethod
-    def load(cls, path: Path) -> Outline:
-        return cls.from_json(path.read_text(encoding="utf-8-sig"))
 
     # ── Pure operations (return new Outline, do not mutate) ────────────
 

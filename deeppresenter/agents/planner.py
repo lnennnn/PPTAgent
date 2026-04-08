@@ -23,7 +23,9 @@ class Planner(Agent):
         if not outline_path.exists():
             raise RuntimeError("Planner did not produce outline.json.")
         info(f"Planner finished initial outline at {outline_path}")
-        outline = Outline.load(outline_path)
+        outline = Outline.model_validate_json(
+            outline_path.read_text(encoding="utf-8-sig")
+        )
 
         while True:
             instruction = yield outline
@@ -49,5 +51,7 @@ class Planner(Agent):
                     break
                 for item in outcome:
                     yield item
-            outline = Outline.load(outline_path)
+            outline = Outline.model_validate_json(
+                outline_path.read_text(encoding="utf-8-sig")
+            )
             info(f"Planner revised outline at {outline_path}")

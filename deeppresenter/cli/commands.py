@@ -368,7 +368,9 @@ def generate(
                     outline_path = Path(msg)
                     await _edit_outline(
                         rich_console,
-                        Outline.load(outline_path),
+                        Outline.model_validate_json(
+                            outline_path.read_text(encoding="utf-8-sig")
+                        ),
                         loop.planner_gen,
                         outline_path,
                     )
@@ -524,7 +526,10 @@ async def _edit_outline(
 
         if cmd in ("ok", "approve", "done", "q"):
             rich_console.print("[bold green]✓ Outline approved.[/bold green]")
-            outline.save(outline_path)
+            outline_path.write_text(
+                outline.model_dump_json(indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
             try:
                 await planner_gen.asend(None)
             except StopAsyncIteration:
