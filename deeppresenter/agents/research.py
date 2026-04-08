@@ -1,12 +1,12 @@
+from pathlib import Path
+
 from deeppresenter.utils.typings import InputRequest
 
 from .agent import Agent
 
 
 class Research(Agent):
-    async def loop(self, req: InputRequest):
-        OUTLINE_FILENAME = "outline.json"
-        outline_path = self.workspace / OUTLINE_FILENAME if req.enable_planner else None
+    async def loop(self, req: InputRequest, outline_path: Path | None = None):
 
         while True:
             agent_message = await self.action(

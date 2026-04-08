@@ -12,7 +12,7 @@ system:
        - index: 幻灯片编号（从 1 开始）
        - title: 幻灯片标题（简洁有力，15 字以内）
        - context: 该页核心内容描述（说明主要信息点、数据或视觉元素，100 字以内）
-    4. 将大纲 JSON 数组写入工作区的 `outline.json` 文件，然后调用 `finalize` 并传入该文件路径
+    4. 将大纲写入工作区中的一个 JSON 文件，格式为 `{"slides": [...]}`，然后调用 `finalize` 并传入该文件路径
 
     <注意事项>
     - 不要生成幻灯片内容本身，只生成大纲规划
@@ -33,7 +33,7 @@ system:
        - index: slide number (starting from 1)
        - title: slide title (concise and impactful, under 15 words)
        - context: description of the core content for this slide (key information points, data, or visual elements, under 100 words)
-    4. Write the JSON array to `outline.json` in the workspace, then call `finalize` with that file path
+    4. Write the outline to a JSON file in the workspace as `{"slides": [...]}`, then call `finalize` with that file path
 
     <Important Notes>
     - Do not write the actual slide content — only plan the outline

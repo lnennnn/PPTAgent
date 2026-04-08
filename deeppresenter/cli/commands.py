@@ -514,17 +514,13 @@ async def _edit_outline(
     _print_menu(rich_console)
     while True:
         try:
-            raw = Prompt.ask("[bold]> Command[/bold]").strip()
+            raw = Prompt.ask("[bold]> Instruction[/bold]", default="y").strip()
         except (EOFError, KeyboardInterrupt):
             rich_console.print("\n[yellow]Keeping outline as-is.[/yellow]")
-            raw = "ok"
+            raw = "y"
         if not raw:
             continue
-        parts = raw.split(maxsplit=1)
-        cmd = parts[0].lower()
-        rest = parts[1] if len(parts) > 1 else ""
-
-        if cmd in ("ok", "approve", "done", "q"):
+        if raw.lower() == "y":
             rich_console.print("[bold green]✓ Outline approved.[/bold green]")
             outline_path.write_text(
                 outline.model_dump_json(indent=2, ensure_ascii=False),
@@ -536,76 +532,20 @@ async def _edit_outline(
                 pass
             break
 
-        elif cmd == "e":
-            if not rest.isdigit():
-                rich_console.print("[red]Usage: e <slide_number>[/red]")
-                continue
-            idx = int(rest)
-            slide = next((s for s in outline.slides if s["index"] == idx), None)
-            if slide is None:
-                rich_console.print(f"[red]Slide {idx} not found.[/red]")
-                continue
-            new_title = Prompt.ask("  New title", default=slide["title"])
-            new_context = Prompt.ask("  New context", default=slide["context"])
-            outline = outline.update_slide(
-                idx, title=new_title.strip(), context=new_context.strip()
+        rich_console.print("[dim]Requesting AI revision…[/dim]")
+        try:
+            result = await planner_gen.asend(raw)
+            while not isinstance(result, (str, Path)):
+                result = await planner_gen.asend(None)
+            outline_path = Path(result)
+            outline = Outline.model_validate_json(
+                outline_path.read_text(encoding="utf-8-sig")
             )
-            _render_outline(rich_console, outline)
-            _print_menu(rich_console)
-
-        elif cmd == "d":
-            if not rest.isdigit():
-                rich_console.print("[red]Usage: d <slide_number>[/red]")
-                continue
-            outline = outline.delete_slide(int(rest))
-            _render_outline(rich_console, outline)
-            _print_menu(rich_console)
-
-        elif cmd == "a":
-            after_idx = int(rest) if rest.isdigit() else 0
-            new_title = Prompt.ask("  Title for new slide")
-            new_context = Prompt.ask("  Context for new slide")
-            outline = outline.add_slide(
-                after_idx, title=new_title.strip(), context=new_context.strip()
-            )
-            _render_outline(rich_console, outline)
-            _print_menu(rich_console)
-
-        elif cmd == "s":
-            tokens = rest.split()
-            if len(tokens) != 2 or not tokens[0].isdigit() or not tokens[1].isdigit():
-                rich_console.print("[red]Usage: s <N> <M>[/red]")
-                continue
-            try:
-                outline = outline.swap_slides(int(tokens[0]), int(tokens[1]))
-            except ValueError as e:
-                rich_console.print(f"[red]{e}[/red]")
-                continue
-            _render_outline(rich_console, outline)
-            _print_menu(rich_console)
-
-        elif cmd == "m":
-            instruction = rest.strip() or Prompt.ask(
-                "  Enter your modification instruction"
-            )
-            if not instruction:
-                continue
-            rich_console.print("[dim]Requesting AI revision…[/dim]")
-            try:
-                result = await planner_gen.asend(instruction)
-                while not isinstance(result, Outline):
-                    result = await planner_gen.asend(None)
-                outline = result
-            except Exception as exc:
-                rich_console.print(f"[red]AI revision failed: {exc}[/red]")
-                continue
-            _render_outline(rich_console, outline)
-            _print_menu(rich_console)
-
-        else:
-            rich_console.print(
-                f"[red]Unknown command '{cmd}'.[/red] Type [cyan]ok[/cyan] to continue."
-            )
+        except Exception as exc:
+            rich_console.print(f"[red]AI revision failed: {exc}[/red]")
+            continue
+        _render_outline(rich_console, outline)
+        _print_menu(rich_console)
 
 
 def _render_outline(rich_console: RichConsole, outline: Outline) -> None:
@@ -619,17 +559,13 @@ def _render_outline(rich_console: RichConsole, outline: Outline) -> None:
     table.add_column("Title", style="bold green", min_width=20)
     table.add_column("Context", min_width=40)
     for slide in outline.slides:
-        table.add_row(str(slide["index"]), slide["title"], slide["context"])
+        table.add_row(str(slide.index), slide.title, slide.context)
     rich_console.print(table)
 
 
 def _print_menu(rich_console: RichConsole) -> None:
     rich_console.print(
         "\n[bold yellow]Outline Actions:[/bold yellow]\n"
-        "  [cyan]e[/cyan] <N>        — Edit slide N\n"
-        "  [cyan]d[/cyan] <N>        — Delete slide N\n"
-        "  [cyan]a[/cyan] <N>        — Add new slide after N (0 = prepend)\n"
-        "  [cyan]s[/cyan] <N> <M>    — Swap slides N and M\n"
-        "  [cyan]m[/cyan] <text>     — Let AI modify the outline (natural language)\n"
-        "  [cyan]ok[/cyan]           — Approve outline and continue\n"
+        "  Enter a natural-language instruction to revise the outline\n"
+        "  [cyan]y[/cyan]            — Approve outline and continue (default)\n"
     )

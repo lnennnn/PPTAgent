@@ -13,7 +13,6 @@ from deeppresenter.agents.research import Research
 from deeppresenter.utils.config import DeepPresenterConfig
 from deeppresenter.utils.constants import WORKSPACE_BASE
 from deeppresenter.utils.log import debug, error, set_logger, timer, warning
-from deeppresenter.utils.outline import Outline
 from deeppresenter.utils.typings import ChatMessage, ConvertType, InputRequest, Role
 from deeppresenter.utils.webview import PlaywrightConverter, convert_html_to_pptx
 
@@ -82,10 +81,12 @@ class AgentLoop:
                 )
                 self.agent = self.planner
                 self.planner_gen = self.planner.loop(request)
-                outline_path = self.workspace / "outline.json"
                 try:
                     async for msg in self.planner_gen:
-                        if isinstance(msg, Outline):
+                        if isinstance(msg, str):
+                            outline_path = Path(msg)
+                            if not outline_path.is_absolute():
+                                outline_path = self.workspace / outline_path
                             self.intermediate_output["outline"] = outline_path
                             yield str(outline_path)
                             break
@@ -107,7 +108,9 @@ class AgentLoop:
             )
             self.agent = self.research_agent
             try:
-                async for msg in self.research_agent.loop(request):
+                async for msg in self.research_agent.loop(
+                    request, self.intermediate_output.get("outline", None)
+                ):
                     if isinstance(msg, str):
                         md_file = Path(msg)
                         if not md_file.is_absolute():
