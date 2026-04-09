@@ -222,8 +222,9 @@ def finalize(outcome: str, agent_name: str = "") -> str:
             return "Outcome path should be a directory containing HTML files"
         if not all(f.stem.startswith("slide_") for f in html_files):
             return "All HTML files should start with 'slide_'"
-    else:
-        warning(f"Unverifiable agent: {agent_name}")
+    elif path.is_file() and agent_name:
+        if path.stat().st_size == 0:
+            return f"Outcome file for {agent_name} is empty"
 
     if LOCAL_TODO_CSV_PATH.exists():
         LOCAL_TODO_CSV_PATH.unlink()

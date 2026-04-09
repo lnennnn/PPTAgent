@@ -30,6 +30,8 @@ from deeppresenter.utils.constants import (
     HALF_BUDGET_NOTICE_MSG,
     HIST_LOST_MSG,
     LAST_ITER_MSG,
+    MA_RESEACHER_PROMPT,
+    MA_RRESENTER_PROMPT,
     MAX_LOGGING_LENGTH,
     MAX_TOOLCALL_PER_TURN,
     MEMORY_COMPACT_MSG,
@@ -60,6 +62,7 @@ class Agent:
         language: Literal["zh", "en"],
         config_file: str | None = None,
         keep_reasoning: bool = True,
+        max_turns: int | None = None,
     ):
         self.name = self.__class__.__name__
         self.cost = Cost()
@@ -71,6 +74,8 @@ class Agent:
         self.keep_reasoning = keep_reasoning
         self.context_window = config.context_window
         self.max_context_turns = config.max_context_folds
+        self.max_turns = max_turns
+        self.turn_count = 0
         config_file = (
             Path(config_file)
             if config_file
@@ -107,6 +112,12 @@ class Agent:
                 time=datetime.now().strftime("%Y-%m-%d"),
                 max_toolcall_per_turn=MAX_TOOLCALL_PER_TURN,
             )
+
+        if any(t["function"]["name"] == "delegate_subagent" for t in self.tools):
+            if self.name == "Research":
+                self.system += MA_RESEACHER_PROMPT
+            elif self.name == "Design":
+                self.system += MA_RRESENTER_PROMPT
 
         if config.offline_mode:
             self.system += OFFLINE_PROMPT
@@ -182,6 +193,19 @@ class Agent:
         **chat_kwargs,
     ):
         """Tool calling interface"""
+        self.turn_count += 1
+        if self.max_turns is not None:
+            if self.turn_count > self.max_turns:
+                raise RuntimeError(
+                    f"{self.name} exceeded max turns: {self.turn_count - 1}/{self.max_turns}"
+                )
+            if self.max_turns - self.turn_count < 2:
+                self.chat_history[-1].content.append(
+                    {
+                        "type": "text",
+                        "text": f"You have only {self.max_turns - self.turn_count} turn left. Finish the remaing work soonly and call `finalize` immediately.",
+                    }
+                )
 
         if len(self.chat_history) == 1:
             self.chat_history.append(

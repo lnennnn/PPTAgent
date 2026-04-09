@@ -52,6 +52,22 @@ from .model import (
 )
 
 
+def format_active_modes(config: DeepPresenterConfig, request: InputRequest) -> str:
+    """Format active generation modes for CLI display."""
+    modes: list[str] = [request.convert_type.value]
+    if config.offline_mode:
+        modes.append("offline")
+    if config.multiagent_mode:
+        modes.append("multiagent")
+    if config.context_folding:
+        modes.append("context-folding")
+    if config.heavy_reflect:
+        modes.append("heavy-reflect")
+    if request.enable_planner:
+        modes.append("planner")
+    return ", ".join(modes)
+
+
 def onboard():
     """Configure DeepPresenter (config.yaml and mcp.json)."""
     ensure_supported_platform()
@@ -222,6 +238,15 @@ def onboard():
             else:
                 raise ValueError("search server not found in mcp.json")
 
+        if Confirm.ask("Configure SerpAPI key for Google web search?", default=False):
+            serpapi_key = Prompt.ask("SerpAPI key", password=True)
+            for server in mcp_data:
+                if server.get("name") == "search":
+                    server["env"]["SERPAPI_KEY"] = serpapi_key
+                    break
+            else:
+                raise ValueError("search server not found in mcp.json")
+
         if Confirm.ask("Configure MinerU API key for PDF parsing?", default=False):
             mineru_key = Prompt.ask("MinerU API key", password=True)
             for server in mcp_data:
@@ -353,6 +378,7 @@ def generate(
             Panel.fit(
                 f"[bold]Prompt:[/bold] {prompt}\n"
                 f"[bold]Attachments:[/bold] {len(attachments)}\n"
+                f"[bold]Features:[/bold] {format_active_modes(config, request)}\n"
                 f"[bold]Workspace:[/bold] {loop.workspace}\n"
                 f"[bold]Version:[/bold] {version}",
                 title="Generation Task",

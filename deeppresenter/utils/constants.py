@@ -17,6 +17,7 @@ MAX_TOOLCALL_PER_TURN = int(os.getenv("MAX_TOOLCALL_PER_TURN", 7))
 MAX_RETRY_INTERVAL = int(os.getenv("MAX_RETRY_INTERVAL", 60))
 # count in chars, this is about the first 4 page of a dual-column paper
 TOOL_CUTOFF_LEN = int(os.getenv("TOOL_CUTOFF_LEN", 4096))
+MAX_SUBAGENT_TURNS = int(os.getenv("MAX_SUBAGENT_TURNS", 10))
 # count in tokens
 CONTEXT_LENGTH_LIMIT = int(os.getenv("CONTEXT_LENGTH_LIMIT", 200_000))
 CUTOFF_WARNING = "NOTE: Output truncated (showing first {line} lines). Use `read_file` with `offset` parameter to continue reading from {resource_id}."
@@ -79,6 +80,33 @@ You can freely install any required tools, packages, or command-line utilities t
 - Toolcall Limit: You can calling up to {max_toolcall_per_turn} tools per turn.
 </Task Guidelines>
 """
+
+# Long-context understanding and multi-perspective retrieval
+MA_RESEACHER_PROMPT = """
+<Guide on Subagents>
+You can use subagents to execute multiple complex tasks in parallel. They have the same capabilities as you, but start with empty context.
+The subagent tool accepts a minimal `task` and a `context_file`.
+Before calling the subagent, write the complete delegation brief to a local file yourself.
+Put the complete background, source paths, constraints, expected deliverables, and handoff format into that file.
+Keep `task` short and action-oriented.
+In general, you should use subagents in scenarios that can be parallelized at scale without information loss. For example:
+1. Long-document understanding: for a document with 20,000 lines, you can assign each agent 1,000 lines and launch 20 subagents in parallel.
+2. Multi-perspective retrieval: analyze one subject from multiple aspects, such as a car's exterior design, configuration and pricing, and development history.
+</Guide on Subagents>
+"""
+
+# Generate multiple pages in parallel after defining the global CSS
+MA_RRESENTER_PROMPT = """
+<Guide on Subagents>
+You can use subagents to execute multiple complex tasks in parallel. They have the same capabilities as you, but start with empty context.
+Therefore, you should first define a global visual theme, including a detailed design specification such as the background and accent colors.
+Then, distribute the generation of each slide draft to different subagents.
+The subagent tool accepts a minimal `task` and a `context_file`.
+Before calling the subagent, write the shared visual system, manuscript excerpt, slide scope, constraints, and handoff requirements into a local file.
+Keep `task` as a short action such as "Generate slide 1 according to the global visual system".
+</Guide on Subagents>
+"""
+
 
 OFFLINE_PROMPT = """
 <Offline Mode>

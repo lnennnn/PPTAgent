@@ -10,6 +10,7 @@ from deeppresenter.agents.env import AgentEnv
 from deeppresenter.agents.planner import Planner
 from deeppresenter.agents.pptagent import PPTAgent
 from deeppresenter.agents.research import Research
+from deeppresenter.agents.subagent import SubAgent
 from deeppresenter.utils.config import DeepPresenterConfig
 from deeppresenter.utils.constants import WORKSPACE_BASE
 from deeppresenter.utils.log import debug, error, set_logger, timer, warning
@@ -64,11 +65,22 @@ class AgentLoop:
         with open(self.workspace / ".input_request.json", "w") as f:
             json.dump(request.model_dump(), f, ensure_ascii=False, indent=2)
         async with AgentEnv(self.workspace, self.config) as agent_env:
-            self.agent_env = agent_env
             hello_message = f"DeepPresenter running in {self.workspace}, with {len(request.attachments)} attachments, prompt={request.instruction}"
+            modes = []
             if self.config.offline_mode:
-                hello_message += " [Offline Mode]"
+                modes.append("Offline Mode")
+            self.agent_env = agent_env
+            if self.config.multiagent_mode:
+                self.agent_env.register_tool(
+                    SubAgent.delegate(
+                        self.config, agent_env, self.workspace, self.language
+                    )
+                )
+                modes.append("Multiagent Mode")
+            if modes:
+                hello_message += f" [{', '.join(modes)}]"
             debug(hello_message)
+
             yield ChatMessage(role=Role.SYSTEM, content=hello_message)
 
             # ── Optional Planner phase ────────────────────────────────────

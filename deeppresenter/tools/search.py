@@ -24,19 +24,44 @@ from deeppresenter.utils.webview import PlaywrightConverter
 
 mcp = FastMCP(name="Search")
 
-TAVILY_KEYS = [
-    i.strip() for i in os.getenv("TAVILY_API_KEY").split(",") if i.startswith("tvly")
-]
 FAKE_UA = UserAgent()
+
+# Google (SerpAPI)
+GOOGLE_KEYS = [i.strip() for i in os.getenv("SERPAPI_KEY", "").split(",") if i.strip()]
+SERPAPI_URL = "https://serpapi.com/search"
+
+# Tavily
+TAVILY_KEYS = [
+    i.strip()
+    for i in os.getenv("TAVILY_API_KEY", "").split(",")
+    if i.strip().startswith("tvly")
+]
 TAVILY_API_URL = "https://api.tavily.com/search"
 
+debug(f"{len(GOOGLE_KEYS)} SerpAPI keys loaded")
 debug(f"{len(TAVILY_KEYS)} TAVILY keys loaded")
 
 
-async def tavily_request(idx: int, params: dict) -> dict[str, Any]:
-    """Send Tavily API request"""
-    headers = {"Content-Type": "application/json", "User-Agent": FAKE_UA.random}
+# ── Google helpers ─────────────────────────────────────────────────────────────
 
+
+async def _serpapi_request(params: dict[str, Any]) -> dict[str, Any]:
+    params = {**params, "api_key": GOOGLE_KEYS[0]}
+    async with aiohttp.ClientSession() as session:
+        async with session.get(SERPAPI_URL, params=params) as response:
+            if response.status == 200:
+                return await response.json()
+            body = await response.text()
+            warning(f"SERPAPI Error [{response.status}] body={body}")
+            response.raise_for_status()
+    raise RuntimeError("SerpAPI request failed")
+
+
+# ── Tavily helpers ─────────────────────────────────────────────────────────────
+
+
+async def _tavily_request(idx: int, params: dict) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json", "User-Agent": FAKE_UA.random}
     async with aiohttp.ClientSession() as session:
         async with session.post(
             TAVILY_API_URL, headers=headers, json=params
@@ -50,25 +75,26 @@ async def tavily_request(idx: int, params: dict) -> dict[str, Any]:
                 await asyncio.sleep(RETRY_TIMES)
             warning(f"TAVILY Error [{idx:02d}] [{response.status}] body={body}")
             response.raise_for_status()
-        raise RuntimeError("TAVILY request failed after retries")
+    raise RuntimeError("TAVILY request failed after retries")
 
 
-async def search_with_fallback(**kwargs) -> dict[str, Any]:
+async def _tavily_search(**kwargs) -> dict[str, Any]:
     last_error = None
     for idx, api_key in enumerate(TAVILY_KEYS, start=1):
         try:
             params = {**kwargs, "api_key": api_key}
-            return await tavily_request(idx, params)
+            return await _tavily_request(idx, params)
         except Exception as e:
             warning(f"TAVILY search error with key {api_key[:16]}...: {e}")
             last_error = e
-
     raise RuntimeError(
         f"TAVILY search failed after {len(TAVILY_KEYS)} retries"
     ) from last_error
 
 
-if len(TAVILY_KEYS):
+# ── Search tools (only one backend registered) ────────────────────────────────
+
+if len(GOOGLE_KEYS):
 
     @mcp.tool()
     async def search_web(
@@ -77,63 +103,123 @@ if len(TAVILY_KEYS):
         time_range: Literal["month", "year"] | None = None,
     ) -> dict:
         """
-        Search the web
+        Search the web via Google (SerpAPI)
 
         Args:
             query: Search keywords
             max_results: Maximum number of search results, default 3
-            time_range: Time range filter for search results, can be "month", "year", or None
+            time_range: Time range filter, "month", "year", or None
 
         Returns:
-            dict: Dictionary containing search results
+            dict: with fields:
+                - query: the search query
+                - total_results: number of results returned
+                - results: list of dicts with title, url, displayed_link, content
         """
-        kwargs = {"query": query, "max_results": max_results, "include_images": False}
+        debug(f"search_web via SerpAPI query={query!r}")
+        params: dict[str, Any] = {"engine": "google", "q": query, "num": max_results}
+        if time_range == "month":
+            params["tbs"] = "qdr:m"
+        elif time_range == "year":
+            params["tbs"] = "qdr:y"
+
+        result = await _serpapi_request(params)
+        results = [
+            {
+                "title": item.get("title", ""),
+                "url": item["link"],
+                "displayed_link": item.get("displayed_link", ""),
+                "content": item.get("snippet", ""),
+            }
+            for item in result.get("organic_results", [])
+        ]
+        return {"query": query, "total_results": len(results), "results": results}
+
+    @mcp.tool()
+    async def search_images(query: str) -> dict:
+        """
+        Search for web images via Google (SerpAPI)
+
+        Returns:
+            dict: with fields:
+                - query: the search query
+                - total_results: number of results returned
+                - images: list of dicts with url, thumbnail, description
+        """
+        debug(f"search_images via SerpAPI query={query!r}")
+        params: dict[str, Any] = {"engine": "google_images", "q": query, "num": 4}
+        result = await _serpapi_request(params)
+        images = [
+            {
+                "url": item["original"],
+                "thumbnail": item.get("thumbnail", ""),
+                "description": item.get("title", query),
+            }
+            for item in result.get("images_results", [])[:4]
+        ]
+        return {"query": query, "total_results": len(images), "images": images}
+
+elif len(TAVILY_KEYS):
+
+    @mcp.tool()
+    async def search_web(
+        query: str,
+        max_results: int = 3,
+        time_range: Literal["month", "year"] | None = None,
+    ) -> dict:
+        """
+        Search the web via Tavily
+
+        Args:
+            query: Search keywords
+            max_results: Maximum number of search results, default 3
+            time_range: Time range filter, "month", "year", or None
+
+        Returns:
+            dict: with fields:
+                - query: the search query
+                - total_results: number of results returned
+                - results: list of dicts with url, content
+        """
+        debug(f"search_web via Tavily query={query!r}")
+        kwargs: dict[str, Any] = {
+            "query": query,
+            "max_results": max_results,
+            "include_images": False,
+        }
         if time_range:
             kwargs["time_range"] = time_range
 
-        result = await search_with_fallback(**kwargs)
-
+        result = await _tavily_search(**kwargs)
         results = [
-            {
-                "url": item["url"],
-                "content": item["content"],
-            }
+            {"url": item["url"], "content": item["content"]}
             for item in result.get("results", [])
         ]
-
-        return {
-            "query": query,
-            "total_results": len(results),
-            "results": results,
-        }
+        return {"query": query, "total_results": len(results), "results": results}
 
     @mcp.tool()
-    async def search_images(
-        query: str,
-    ) -> dict:
+    async def search_images(query: str) -> dict:
         """
-        Search for web images
+        Search for web images via Tavily
+
+        Returns:
+            dict: with fields:
+                - query: the search query
+                - total_results: number of results returned
+                - images: list of dicts with url, description
         """
-        result = await search_with_fallback(
-            query=query,
-            max_results=4,
-            include_images=True,
+        debug(f"search_images via Tavily query={query!r}")
+        result = await _tavily_search(
             include_image_descriptions=True,
         )
-
         images = [
-            {
-                "url": img["url"],
-                "description": img["description"],
-            }
+            {"url": img["url"], "description": img["description"]}
             for img in result.get("images", [])
         ]
+        return {"query": query, "total_results": len(images), "images": images}
 
-        return {
-            "query": query,
-            "total_results": len(images),
-            "images": images,
-        }
+
+# ── Other tools ───────────────────────────────────────────────────────────────
 
 
 @mcp.tool()
@@ -199,7 +285,6 @@ async def download_file(url: str, output_file: str) -> str:
     """
     Download a file from a URL and save it to a local path.
     """
-    # Create directory if it doesn't exist
     workspace = Path(os.getcwd())
     output_path = Path(output_file).resolve()
     assert output_path.is_relative_to(workspace), (

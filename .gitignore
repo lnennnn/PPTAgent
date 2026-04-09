@@ -11,8 +11,6 @@ oaib.txt
 .yarn
 runs
 node_modules
-CLAUDE.md
-AGENTS.md
 **/images/*.png
 **/images/*.jpg
 */config.yaml
