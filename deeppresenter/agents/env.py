@@ -40,6 +40,8 @@ from deeppresenter.utils.log import (
 from deeppresenter.utils.mcp_client import MCPClient
 from deeppresenter.utils.typings import ChatMessage, MCPServer, Role
 
+LOCAL_TOOL_SERVER = "local"
+
 
 class ToolTiming(BaseModel):
     total_time: float = 0
@@ -332,6 +334,8 @@ class AgentEnv:
             self._tools_dict.pop(tool_name, None)
             self._tool_to_server.pop(tool_name, None)
         del self._server_tools[server_name]
+        if server_name == LOCAL_TOOL_SERVER:
+            return
         await self.client._close_server(server_name)
         debug(f"Disconnected from server {server_name}")
 
@@ -344,17 +348,14 @@ class AgentEnv:
     def register_tool(
         self,
         func: Callable,
-        *,
-        name: str | None = None,
-        description: str | None = None,
     ) -> None:
         """Register a callable (function or bound method) as a tool.
 
         The JSON Schema for parameters is auto-generated from type hints.
         Supports both sync and async callables.
         """
-        tool_name = name or func.__name__
-        tool_desc = description or inspect.getdoc(func) or ""
+        tool_name = func.__name__
+        tool_desc = inspect.getdoc(func) or ""
         schema = get_cached_typeadapter(func).json_schema()
         schema = compress_schema(schema, prune_titles=True)
         self._tools_dict[tool_name] = {
@@ -366,6 +367,10 @@ class AgentEnv:
             },
         }
         self._local_tools[tool_name] = func
+        self._tool_to_server[tool_name] = LOCAL_TOOL_SERVER
+        if tool_name in self._server_tools[LOCAL_TOOL_SERVER]:
+            raise ValueError(f"Tool {tool_name} is already registered.")
+        self._server_tools[LOCAL_TOOL_SERVER].append(tool_name)
 
     async def _call_local_tool(
         self, name: str, arguments: dict | None

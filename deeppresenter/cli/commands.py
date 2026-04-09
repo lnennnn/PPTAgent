@@ -52,6 +52,22 @@ from .model import (
 )
 
 
+def format_active_modes(config: DeepPresenterConfig, request: InputRequest) -> str:
+    """Format active generation modes for CLI display."""
+    modes: list[str] = [request.convert_type.value]
+    if config.offline_mode:
+        modes.append("offline")
+    if config.multiagent_mode:
+        modes.append("multiagent")
+    if config.context_folding:
+        modes.append("context-folding")
+    if config.heavy_reflect:
+        modes.append("heavy-reflect")
+    if request.enable_planner:
+        modes.append("planner")
+    return ", ".join(modes)
+
+
 def onboard():
     """Configure DeepPresenter (config.yaml and mcp.json)."""
     ensure_supported_platform()
@@ -362,6 +378,7 @@ def generate(
             Panel.fit(
                 f"[bold]Prompt:[/bold] {prompt}\n"
                 f"[bold]Attachments:[/bold] {len(attachments)}\n"
+                f"[bold]Features:[/bold] {format_active_modes(config, request)}\n"
                 f"[bold]Workspace:[/bold] {loop.workspace}\n"
                 f"[bold]Version:[/bold] {version}",
                 title="Generation Task",

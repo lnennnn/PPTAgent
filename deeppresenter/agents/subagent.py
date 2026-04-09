@@ -24,21 +24,22 @@ class SubAgent(Agent):
                 task: Minimal action instruction for this subtask.
                 context_file: Path to a local file that stores the full delegation context.
             """
+            context_path = Path(context_file)
             sub_workspace = workspace / "subagents" / short
             if sub_workspace.exists():
                 raise Exception("Should not use the same short for more than once")
             sub_workspace.mkdir(parents=True)
-            agent = cls(
+            subagent = cls(
                 config, agent_env, sub_workspace, language, max_turns=MAX_SUBAGENT_TURNS
             )
-            agent.name = short
-            assert Path(context_file).exists(), (
-                f"Context file {context_file} does not exist"
-            )
+            subagent.name = short
+            if not context_path.is_absolute():
+                context_path = workspace / context_path
+            assert context_path.exists(), f"Context file {context_file} does not exist"
             try:
-                return await agent.loop(task, Path(context_file).read_text())
+                return await subagent.loop(task, context_path.read_text())
             finally:
-                agent.save_history()
+                subagent.save_history()
 
         return delegate_subagent
 
